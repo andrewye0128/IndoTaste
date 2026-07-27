@@ -52,8 +52,18 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\Customer\FormCustomerOrder.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\Customer\FormCustomerOrder.Designer.cs">
+      <DependentUpon>FormCustomerOrder.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Helpers\AppColors.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="Forms\Customer\FormCustomerOrder.resx">
+      <DependentUpon>FormCustomerOrder.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -75,6 +85,26 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\Icons\icon_all_red.png" />
+    <Content Include="Assets\Icons\icon_all_white.png" />
+    <Content Include="Assets\Icons\icon_cake_red.png" />
+    <Content Include="Assets\Icons\icon_cake_white.png" />
+    <Content Include="Assets\Icons\icon_drink_red.png" />
+    <Content Include="Assets\Icons\icon_drink_white.png" />
+    <Content Include="Assets\Icons\icon_fries_red.png" />
+    <Content Include="Assets\Icons\icon_fries_white.png" />
+    <Content Include="Assets\Icons\icon_plate_red.png" />
+    <Content Include="Assets\Icons\icon_plate_white.png" />
+    <Content Include="Assets\Icons\icon_popular_red.png" />
+    <Content Include="Assets\Icons\icon_popular_white.png" />
+    <Content Include="Assets\Icons\icon_rice_red.png" />
+    <Content Include="Assets\Icons\icon_rice_white.png" />
+    <Content Include="Assets\Icons\icon_search.png" />
+    <Content Include="Assets\Icons\icon_vegetable_red.png" />
+    <Content Include="Assets\Icons\icon_vegetable_white.png" />
+    <Content Include="Assets\Images\banner_nasi_goreng.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
