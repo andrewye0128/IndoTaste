@@ -42,8 +42,8 @@
             this.pnlHeader = new System.Windows.Forms.Panel();
             this.tblContent = new System.Windows.Forms.TableLayoutPanel();
             this.pnlProductArea = new System.Windows.Forms.Panel();
-            this.pnlCart = new System.Windows.Forms.Panel();
             this.flpCategory = new System.Windows.Forms.FlowLayoutPanel();
+            this.pnlCart = new System.Windows.Forms.Panel();
             this.tblMain.SuspendLayout();
             this.tblContent.SuspendLayout();
             this.SuspendLayout();
@@ -78,11 +78,11 @@
             // 
             this.tblContent.ColumnCount = 3;
             this.tblContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 230F));
-            this.tblContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tblContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 340F));
+            this.tblContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 70F));
+            this.tblContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 30F));
             this.tblContent.Controls.Add(this.pnlProductArea, 1, 0);
-            this.tblContent.Controls.Add(this.pnlCart, 2, 0);
             this.tblContent.Controls.Add(this.flpCategory, 0, 0);
+            this.tblContent.Controls.Add(this.pnlCart, 2, 0);
             this.tblContent.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tblContent.Location = new System.Drawing.Point(0, 100);
             this.tblContent.Margin = new System.Windows.Forms.Padding(0);
@@ -98,18 +98,8 @@
             this.pnlProductArea.Location = new System.Drawing.Point(230, 0);
             this.pnlProductArea.Margin = new System.Windows.Forms.Padding(0, 0, 12, 0);
             this.pnlProductArea.Name = "pnlProductArea";
-            this.pnlProductArea.Size = new System.Drawing.Size(883, 641);
+            this.pnlProductArea.Size = new System.Drawing.Size(852, 641);
             this.pnlProductArea.TabIndex = 1;
-            // 
-            // pnlCart
-            // 
-            this.pnlCart.BackColor = System.Drawing.Color.White;
-            this.pnlCart.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlCart.Location = new System.Drawing.Point(1125, 0);
-            this.pnlCart.Margin = new System.Windows.Forms.Padding(0, 0, 12, 0);
-            this.pnlCart.Name = "pnlCart";
-            this.pnlCart.Size = new System.Drawing.Size(328, 641);
-            this.pnlCart.TabIndex = 2;
             // 
             // flpCategory
             // 
@@ -120,6 +110,14 @@
             this.flpCategory.Name = "flpCategory";
             this.flpCategory.Size = new System.Drawing.Size(230, 629);
             this.flpCategory.TabIndex = 3;
+            // 
+            // pnlCart
+            // 
+            this.pnlCart.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlCart.Location = new System.Drawing.Point(1097, 3);
+            this.pnlCart.Name = "pnlCart";
+            this.pnlCart.Size = new System.Drawing.Size(365, 635);
+            this.pnlCart.TabIndex = 4;
             // 
             // FormCustomerOrder
             // 
@@ -143,7 +141,7 @@
         private System.Windows.Forms.Panel pnlHeader;
         private System.Windows.Forms.TableLayoutPanel tblContent;
         private System.Windows.Forms.Panel pnlProductArea;
-        private System.Windows.Forms.Panel pnlCart;
         private System.Windows.Forms.FlowLayoutPanel flpCategory;
+        private System.Windows.Forms.Panel pnlCart;
     }
 }

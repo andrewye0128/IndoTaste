@@ -10,6 +10,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using IndoTaste.Models;
+using IndoTaste.Forms.Customer.Controls;
 
 namespace IndoTaste.Forms.Customer
 {
@@ -28,6 +30,15 @@ namespace IndoTaste.Forms.Customer
         private ComboBox cboSort;
 
         private float _bannerAspectRatio = 0.5f; // 預設值，載入圖片後會重新計算
+
+
+        private FlowLayoutPanel flpProducts;     // 商品卡片容器
+        private List<Product> _allProducts;      // 全部商品資料（篩選時的來源）
+
+        private string _selectedCategoryKey = "all";   // 目前選取的分類
+
+        private string _searchKeyword = "";        // 目前的搜尋關鍵字
+        private bool _suppressSearchEvent = false; // 程式自行修改文字時，暫停觸發篩選
 
 
         public FormCustomerOrder()
@@ -140,7 +151,7 @@ namespace IndoTaste.Forms.Customer
             System.Diagnostics.Debug.WriteLine($"應用程式基目錄: {AppDomain.CurrentDomain.BaseDirectory}");
 
             string path1 = Path.Combine(Application.StartupPath, "Properties");
-            string path2 = Path.Combine(Directory.GetParent(Directory.GetParent(Application.StartupPath).FullName).FullName, 
+            string path2 = Path.Combine(Directory.GetParent(Directory.GetParent(Application.StartupPath).FullName).FullName,
                                         "IndoTaste", "Properties");
 
             System.Diagnostics.Debug.WriteLine($"嘗試路徑 1: {path1}");
@@ -290,32 +301,31 @@ namespace IndoTaste.Forms.Customer
         }
 
 
-
         private void CreateCategoryButtons()
         {
-            var categories = new (string Text, string IconName)[]
+            // 加入第三個欄位 CategoryKey，對應 Product.CategoryKey
+            var categories = new (string Text, string IconName, string CategoryKey)[]
             {
-                ("全部", "icon_all"),
-                ("熱門", "icon_popular"),
-                ("主食", "icon_rice"),
-                ("主菜", "icon_plate"),
-                ("蔬食", "icon_vegetable"),
-                ("炸物", "icon_fries"),
-                ("甜點", "icon_cake"),
-                ("飲料", "icon_drink"),
+                ("全部", "icon_all",       "all"),
+                ("熱門", "icon_popular",   "popular"),
+                ("主食", "icon_rice",      "rice"),
+                ("主菜", "icon_plate",     "plate"),
+                ("蔬食", "icon_vegetable", "vegetable"),
+                ("炸物", "icon_fries",     "fries"),
+                ("甜點", "icon_cake",      "cake"),
+                ("飲料", "icon_drink",     "drink"),
             };
 
             this.flpCategory.Controls.Clear();
-            foreach (var (text, iconName) in categories)
+            foreach (var (text, iconName, categoryKey) in categories)
             {
-                // 分別載入紅色版與白色版圖示
                 Image redIcon = LoadCategoryIcon(iconName + "_red");
                 Image whiteIcon = LoadCategoryIcon(iconName + "_white");
 
                 var btn = new Button
                 {
                     Text = "  " + text,
-                    Image = redIcon, // 預設先給紅色版（未選取狀態）
+                    Image = redIcon,
                     TextImageRelation = TextImageRelation.ImageBeforeText,
                     ImageAlign = ContentAlignment.MiddleLeft,
                     TextAlign = ContentAlignment.MiddleLeft,
@@ -329,11 +339,10 @@ namespace IndoTaste.Forms.Customer
                     Margin = new Padding(8, 0, 8, 8),
                     Padding = new Padding(12, 0, 0, 0),
                     Cursor = Cursors.Hand,
-                    Tag = iconName
+                    Tag = categoryKey          // 改存分類 Key
                 };
-                UpdateButtonRoundedCorners(btn);
 
-                // 儲存這顆按鈕對應的紅/白圖示，供選取切換使用
+                UpdateButtonRoundedCorners(btn);
                 _buttonIconPairs[btn] = (redIcon, whiteIcon);
 
                 if (this.flpCategory.Controls.Count == 0)
@@ -350,19 +359,14 @@ namespace IndoTaste.Forms.Customer
                     ApplySelectedStyle(btn);
                     _selectedCategoryButton = btn;
 
-                    // TODO: 在此加入依分類篩選產品的邏輯
+                    // 記錄選取的分類，並重新篩選商品
+                    _selectedCategoryKey = btn.Tag as string;
+                    ApplyFilters();
                 };
-
-                //btn.Width = this.flpCategory.ClientSize.Width - this.flpCategory.Padding.Horizontal;
 
                 btn.Width = this.flpCategory.ClientSize.Width
                             - this.flpCategory.Padding.Horizontal
                             - btn.Margin.Horizontal;
-
-                if (redIcon != null)
-                {
-                    _buttonImages[btn] = redIcon;
-                }
 
                 this.flpCategory.Controls.Add(btn);
             }
@@ -402,6 +406,60 @@ namespace IndoTaste.Forms.Customer
             {
                 btn.Image = icons.Red;
             }
+        }
+
+
+        /// <summary>
+        /// 依分類 + 搜尋關鍵字 + 排序方式，篩選商品並重新產生卡片
+        /// </summary>
+        private void ApplyFilters()
+        {
+            if (_allProducts == null) return;
+
+            IEnumerable<Product> result = _allProducts;
+
+            // --- 1. 分類篩選 ---
+            if (_selectedCategoryKey == "popular")
+            {
+                result = result.Where(p => p.IsPopular);
+            }
+            else if (_selectedCategoryKey != "all")
+            {
+                result = result.Where(p => p.CategoryKey == _selectedCategoryKey);
+            }
+
+            // --- 2. 搜尋關鍵字（中文名、印尼文名、描述都比對）---
+            if (!string.IsNullOrWhiteSpace(_searchKeyword))
+            {
+                string keyword = _searchKeyword;
+
+                result = result.Where(p =>
+                    (p.NameZh != null && p.NameZh.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (p.NameId != null && p.NameId.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                    (p.Description != null && p.Description.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0));
+            }
+
+            // --- 3. 排序 ---
+            switch (cboSort?.SelectedIndex ?? 0)
+            {
+                case 1:  // 價格由低到高
+                    result = result.OrderBy(p => p.Price).ThenBy(p => p.ProductId);
+                    break;
+
+                case 2:  // 價格由高到低
+                    result = result.OrderByDescending(p => p.Price).ThenBy(p => p.ProductId);
+                    break;
+
+                case 3:  // 評分最高
+                    result = result.OrderByDescending(p => p.Rating).ThenBy(p => p.ProductId);
+                    break;
+
+                default: // 熱門排序：熱門商品優先，其餘維持原順序
+                    result = result.OrderByDescending(p => p.IsPopular).ThenBy(p => p.ProductId);
+                    break;
+            }
+
+            RenderProducts(result.ToList());
         }
 
 
@@ -497,94 +555,6 @@ namespace IndoTaste.Forms.Customer
             UpdateBannerRowHeight();
         }
 
-        //private void SetupSearchBar()
-        //{
-        //    pnlSearchBar = new Panel
-        //    {
-        //        Dock = DockStyle.Fill,
-        //        Margin = new Padding(0, 8, 0, 8),
-        //        BackColor = Color.Transparent
-        //    };
-
-        //    var pnlSearchBox = new Panel
-        //    {
-        //        Height = 48,
-        //        BackColor = Color.White,
-        //        Location = new Point(0, 4)
-        //    };
-        //    pnlSearchBox.Resize += (s, e) => UpdatePanelRoundedCorners(pnlSearchBox, 12);
-
-        //    var picSearchIcon = new PictureBox
-        //    {
-        //        Size = new Size(20, 20),
-        //        Location = new Point(16, 14),
-        //        SizeMode = PictureBoxSizeMode.Zoom,
-        //        BackColor = Color.Transparent
-        //    };
-        //    string searchIconPath = Path.Combine(
-        //        AppDomain.CurrentDomain.BaseDirectory, "Assets", "Icons", "icon_search.png");
-        //    if (File.Exists(searchIconPath))
-        //        picSearchIcon.Image = Image.FromFile(searchIconPath);
-
-        //    txtSearch = new TextBox
-        //    {
-        //        BorderStyle = BorderStyle.None,
-        //        Font = new Font("微軟正黑體", 12),
-        //        ForeColor = Color.Gray,
-        //        Location = new Point(48, 13),
-        //        Width = 400,
-        //        Text = "搜尋菜色..."
-        //    };
-
-        //    txtSearch.GotFocus += (s, e) =>
-        //    {
-        //        if (txtSearch.Text == "搜尋菜色...")
-        //        {
-        //            txtSearch.Text = "";
-        //            txtSearch.ForeColor = Color.FromArgb(60, 60, 60);
-        //        }
-        //    };
-        //    txtSearch.LostFocus += (s, e) =>
-        //    {
-        //        if (string.IsNullOrWhiteSpace(txtSearch.Text))
-        //        {
-        //            txtSearch.Text = "搜尋菜色...";
-        //            txtSearch.ForeColor = Color.Gray;
-        //        }
-        //    };
-
-        //    pnlSearchBox.Controls.Add(picSearchIcon);
-        //    pnlSearchBox.Controls.Add(txtSearch);
-
-        //    cboSort = new ComboBox
-        //    {
-        //        DropDownStyle = ComboBoxStyle.DropDownList,
-        //        Font = new Font("微軟正黑體", 11),
-        //        Width = 140,
-        //        Height = 40,
-        //        FlatStyle = FlatStyle.Flat
-        //    };
-        //    cboSort.Items.AddRange(new[] { "熱門排序", "價格由低到高", "價格由高到低", "評分最高" });
-        //    cboSort.SelectedIndex = 0;
-
-        //    void LayoutSearchBar()
-        //    {
-        //        if (pnlSearchBar.Width <= 0) return;
-
-        //        cboSort.Location = new Point(pnlSearchBar.Width - cboSort.Width, 8);
-        //        pnlSearchBox.Width = pnlSearchBar.Width - cboSort.Width - 16;
-        //        txtSearch.Width = Math.Max(50, pnlSearchBox.Width - 64);
-        //        UpdatePanelRoundedCorners(pnlSearchBox, 12);
-        //    }
-
-        //    pnlSearchBar.Resize += (s, e) => LayoutSearchBar();
-
-        //    pnlSearchBar.Controls.Add(pnlSearchBox);
-        //    pnlSearchBar.Controls.Add(cboSort);
-
-        //    LayoutSearchBar();
-        //}
-
 
         private bool _isSearchPlaceholder = true;   // 目前顯示的是否為提示文字
         private const string SearchPlaceholder = "搜尋菜色...";
@@ -623,23 +593,39 @@ namespace IndoTaste.Forms.Customer
                 Text = SearchPlaceholder
             };
 
+
             txtSearch.GotFocus += (s, e) =>
             {
                 if (_isSearchPlaceholder)
                 {
+                    _suppressSearchEvent = true;        // 開始程式改動
                     txtSearch.Text = "";
                     txtSearch.ForeColor = Color.FromArgb(60, 60, 60);
                     _isSearchPlaceholder = false;
+                    _suppressSearchEvent = false;       // 結束
                 }
             };
+
             txtSearch.LostFocus += (s, e) =>
             {
                 if (string.IsNullOrWhiteSpace(txtSearch.Text))
                 {
+                    _suppressSearchEvent = true;
                     txtSearch.Text = SearchPlaceholder;
                     txtSearch.ForeColor = Color.Gray;
                     _isSearchPlaceholder = true;
+                    _suppressSearchEvent = false;
                 }
+            };
+
+            // 邊打字邊即時篩選
+            txtSearch.TextChanged += (s, e) =>
+            {
+                if (_suppressSearchEvent) return;       // 程式自己改的，不處理
+                if (_isSearchPlaceholder) return;       // 目前顯示的是提示文字，不是真的輸入
+
+                _searchKeyword = txtSearch.Text.Trim();
+                ApplyFilters();
             };
 
             pnlSearchBox.Controls.Add(picSearchIcon);
@@ -658,6 +644,9 @@ namespace IndoTaste.Forms.Customer
             };
             cboSort.Items.AddRange(new[] { "熱門排序", "價格由低到高", "價格由高到低", "評分最高" });
             cboSort.SelectedIndex = 0;
+
+            // 註冊在設定 SelectedIndex 之後，避免初始化時就觸發一次篩選
+            cboSort.SelectedIndexChanged += (s, e) => ApplyFilters();
 
             // --- 排版：搜尋框佔 65%，排序選單靠右對齊 ---
             void LayoutSearchBar()
@@ -721,21 +710,6 @@ namespace IndoTaste.Forms.Customer
 
 
         /// <summary>
-        /// 商品列表區域（暫時先給空 Panel，之後放商品卡片用的 FlowLayoutPanel）
-        /// </summary>
-        private void SetupProductList()
-        {
-            pnlProductList = new Panel
-            {
-                Dock = DockStyle.Fill,
-                AutoScroll = true,
-                BackColor = Color.Transparent
-            };
-
-            // TODO: 之後在這裡建立 FlowLayoutPanel 放商品卡片
-        }
-
-        /// <summary>
         /// 診斷版面：印出各容器的父層與實際座標，用來確認 pnlProductArea 是否真的在 tblMain 的儲存格內
         /// </summary>
         private void PrintDebugLayout()
@@ -793,6 +767,147 @@ namespace IndoTaste.Forms.Customer
 
             // 移除預設焦點，避免啟動時 txtSearch 的提示文字被 GotFocus 清空
             this.ActiveControl = null;
+            UpdateBannerRowHeight();
+        }
+
+
+
+        private List<Product> GetSampleProducts()
+        {
+            return new List<Product>
+  {
+        new Product { ProductId = 1, NameZh = "印尼炒飯", NameId = "Nasi Goreng",
+                      Description = "印尼經典炒飯，香氣濃郁", Price = 120, Rating = 5.0,
+                      IsPopular = true, CategoryKey = "rice",
+                      ImageFileName = "product_nasi_goreng.png" },
+
+        new Product { ProductId = 2, NameZh = "沙嗲串燒", NameId = "Sate",
+                      Description = "炭烤雞肉串，搭配花生醬", Price = 150, Rating = 5.0,
+                      IsPopular = true, CategoryKey = "plate",
+                      ImageFileName = "product_sate.png" },
+
+        new Product { ProductId = 3, NameZh = "仁當牛肉", NameId = "Rendang",
+                      Description = "印尼傳統燉牛肉，香辣濃郁", Price = 180, Rating = 5.0,
+                      IsPopular = true, CategoryKey = "plate",
+                      ImageFileName = "product_rendang.png" },
+
+        new Product { ProductId = 4, NameZh = "雞肉湯", NameId = "Soto Ayam",
+                      Description = "香料雞湯，清爽開胃", Price = 120, Rating = 5.0,
+                      IsPopular = false, CategoryKey = "plate",
+                      ImageFileName = "product_soto_ayam.png" },
+
+        new Product { ProductId = 5, NameZh = "天貝炸物", NameId = "Tempe Goreng",
+                      Description = "印尼傳統發酵豆餅", Price = 80, Rating = 5.0,
+                      IsPopular = false, CategoryKey = "fries",
+                      ImageFileName = "product_tempe_goreng.png" },
+
+        new Product { ProductId = 6, NameZh = "千層糕", NameId = "Kue Lapis",
+                      Description = "印尼傳統千層糕", Price = 60, Rating = 5.0,
+                      IsPopular = false, CategoryKey = "cake",
+                      ImageFileName = "product_kue_lapis.png" },
+    };
+        }
+
+
+        /// <summary>
+        /// 建立商品列表區域：外層 Panel + 內部 FlowLayoutPanel（自動換行、可捲動）
+        /// </summary>
+        private void SetupProductList()
+        {
+            pnlProductList = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent
+            };
+
+            flpProducts = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,              // 卡片超出高度時出現垂直捲軸
+                WrapContents = true,            // 一列排不下時自動換到下一列
+                FlowDirection = FlowDirection.LeftToRight,
+                Padding = new Padding(0, 0, 8, 0),   // 右側留空給捲軸，避免卡片被壓到
+                BackColor = Color.Transparent
+            };
+
+            pnlProductList.Controls.Add(flpProducts);
+
+            // 載入假資料並產生卡片
+            _allProducts = GetSampleProducts();
+            //RenderProducts(_allProducts);
+            ApplyFilters(); 
+        }
+
+        /// <summary>
+        /// 依傳入的商品清單重新產生卡片
+        /// 之後分類篩選、搜尋、排序都是「整理好清單後呼叫這個方法」即可
+        /// </summary>
+
+        private void RenderProducts(List<Product> products)
+        {
+            if (flpProducts == null) return;
+
+            flpProducts.SuspendLayout();
+
+            foreach (Control ctrl in flpProducts.Controls.OfType<Control>().ToList())
+            {
+                flpProducts.Controls.Remove(ctrl);
+                ctrl.Dispose();
+            }
+
+            if (products == null || products.Count == 0)
+            {
+                // 查無商品時顯示提示文字
+                //var lblEmpty = new Label
+                //{
+                //    Text = "此分類目前沒有商品",
+                //    Font = new Font("微軟正黑體", 14),
+                //    ForeColor = Color.FromArgb(150, 140, 130),
+                //    AutoSize = true,
+                //    Margin = new Padding(24, 40, 0, 0)
+                //};
+                //flpProducts.Controls.Add(lblEmpty);
+
+
+                // 依照是「搜尋沒結果」還是「分類沒商品」顯示不同訊息
+                string message = string.IsNullOrWhiteSpace(_searchKeyword)
+                    ? "此分類目前沒有商品"
+                    : $"找不到符合「{_searchKeyword}」的菜色";
+
+                var lblEmpty = new Label
+                {
+                    Text = message,
+                    Font = new Font("微軟正黑體", 14),
+                    ForeColor = Color.FromArgb(150, 140, 130),
+                    AutoSize = true,
+                    Margin = new Padding(24, 40, 0, 0)
+                };
+                flpProducts.Controls.Add(lblEmpty);
+            }
+            else
+            {
+                foreach (var product in products)
+                {
+                    var card = new ProductCard(product)
+                    {
+                        Margin = new Padding(0, 0, 16, 16)
+                    };
+
+                    card.AddToCartClicked += Card_AddToCartClicked;
+                    flpProducts.Controls.Add(card);
+                }
+            }
+
+            flpProducts.ResumeLayout(true);
+        }
+
+        /// <summary>
+        /// 任何一張卡片按下「加入購物車」都會走到這裡
+        /// </summary>
+        private void Card_AddToCartClicked(object sender, Product product)
+        {
+            // TODO: 之後改成實際加入購物車的邏輯（右側購物車區塊）
+            MessageBox.Show($"加入購物車：{product.DisplayName}　NT$ {product.Price:0}");
         }
 
         private void tblMain_Paint(object sender, PaintEventArgs e)
@@ -800,6 +915,6 @@ namespace IndoTaste.Forms.Customer
 
         }
 
-        
+
     }
 }

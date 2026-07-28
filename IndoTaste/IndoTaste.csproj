@@ -52,6 +52,12 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\Customer\Controls\ProductCard.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Forms\Customer\Controls\ProductCard.Designer.cs">
+      <DependentUpon>ProductCard.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\Customer\FormCustomerOrder.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -59,8 +65,13 @@
       <DependentUpon>FormCustomerOrder.cs</DependentUpon>
     </Compile>
     <Compile Include="Helpers\AppColors.cs" />
+    <Compile Include="Helpers\UiHelper.cs" />
+    <Compile Include="Models\Product.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="Forms\Customer\Controls\ProductCard.resx">
+      <DependentUpon>ProductCard.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Forms\Customer\FormCustomerOrder.resx">
       <DependentUpon>FormCustomerOrder.cs</DependentUpon>
     </EmbeddedResource>
@@ -105,6 +116,12 @@
     <Content Include="Assets\Icons\icon_vegetable_red.png" />
     <Content Include="Assets\Icons\icon_vegetable_white.png" />
     <Content Include="Assets\Images\banner_nasi_goreng.png" />
+    <Content Include="Assets\Images\Products\product_kue_lapis.png" />
+    <Content Include="Assets\Images\Products\product_nasi_goreng.png" />
+    <Content Include="Assets\Images\Products\product_rendang.png" />
+    <Content Include="Assets\Images\Products\product_sate.png" />
+    <Content Include="Assets\Images\Products\product_soto_ayam.png" />
+    <Content Include="Assets\Images\Products\product_tempe_goreng.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
