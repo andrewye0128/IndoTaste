@@ -1,16 +1,19 @@
-﻿using IndoTaste.Helpers;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using IndoTaste.Models;
+using IndoTaste.Helpers;
+using IndoTaste.Services;   
 using IndoTaste.Forms.Customer.Controls;
 
 namespace IndoTaste.Forms.Customer
@@ -22,6 +25,7 @@ namespace IndoTaste.Forms.Customer
         private Dictionary<Button, Image> _buttonImages = new Dictionary<Button, Image>();
 
         // UI 元件變數
+        // 商品列表區域
         private TableLayoutPanel tlpProductArea;
         private Panel pnlBanner;
         private Panel pnlSearchBar;
@@ -41,6 +45,17 @@ namespace IndoTaste.Forms.Customer
         private bool _suppressSearchEvent = false; // 程式自行修改文字時，暫停觸發篩選
 
 
+        // 購物車區域
+        private ShoppingCart _cart = new ShoppingCart();
+        private TableLayoutPanel tlpCart;
+        private FlowLayoutPanel flpCartItems;
+        private Label lblCartTitle;
+        private Label lblTotalLabel;
+        private Label lblTotalAmount;
+        private Button btnClearCart;
+        private Button btnCheckout;
+
+
         public FormCustomerOrder()
         {
             InitializeComponent();
@@ -58,27 +73,10 @@ namespace IndoTaste.Forms.Customer
             // # UI視窗
             //this.BackColor = Color.FromArgb(249, 243, 233);
 
-
-            // 設定 pnlProductArea 背景色
-            //pnlHeader.BackColor = Color.FromArgb(77, 18, 8);
-            pnlHeader.BackColor = AppColors.HeaderBgColor;
-
             // 設定 pnlProductArea 背景色
             pnlProductArea.BackColor = Color.FromArgb(248, 244, 236);
 
             SetCategoryPanelStyle();
-
-
-            // 新增：設定 FlowLayoutPanel 屬性
-            //this.flpCategory.AutoSize = false;
-            //this.flpCategory.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            //this.flpCategory.WrapContents = false;
-
-            //// 讓 flpCategory 與視窗左側有距離 (可改數值)
-            //this.flpCategory.Margin = new Padding(12, 12, 0, 0);   // 在 table cell 中產生左側空白
-            //this.flpCategory.Padding = new Padding(8);               // 控制欄內按鈕與邊界的內距
-            //this.flpCategory.FlowDirection = FlowDirection.TopDown;
-            //this.flpCategory.WrapContents = false;
 
 
             // 建立按鈕
@@ -93,6 +91,12 @@ namespace IndoTaste.Forms.Customer
 
             // 改用 TableLayoutPanel 統一管理 Banner / 搜尋列 / 商品列表 三個區塊
             SetupProductAreaLayout();
+
+            // header : 包含左上角 Logo
+            SetupHeader(); 
+
+            // 購物車
+            SetupCartArea(); 
 
 
 
@@ -162,18 +166,6 @@ namespace IndoTaste.Forms.Customer
 
             System.Diagnostics.Debug.WriteLine("========================");
         }
-
-        private readonly string[] categoryNames =
-        {
-            "全部",
-            "熱門排行榜",
-            "主食",
-            "主菜",
-            "蔬食",
-            "炸物",
-            "甜點",
-            "飲料"
-        };
 
 
         /// <summary>
@@ -754,8 +746,12 @@ namespace IndoTaste.Forms.Customer
             flpCategory.Dock = DockStyle.Fill;
 
             pnlProductArea.Dock = DockStyle.Fill;
-            pnlProductArea.Margin = Padding.Empty;
+            pnlProductArea.Margin = new Padding(0, 0, 12, 0);   // 保留與購物車的間距
             pnlProductArea.Padding = new Padding(12, 12, 12, 12); // 中間區塊與左右欄的內距
+
+            // 順便把 pnlCart 也納入管理，避免之後出現同樣的錯位問題
+            pnlCart.Dock = DockStyle.Fill;
+            pnlCart.Margin = new Padding(0, 12, 13, 12);
 
             tblMain.ResumeLayout(true);
             this.ResumeLayout(true);
@@ -770,42 +766,69 @@ namespace IndoTaste.Forms.Customer
             UpdateBannerRowHeight();
         }
 
-
-
         private List<Product> GetSampleProducts()
         {
             return new List<Product>
-  {
+    {
         new Product { ProductId = 1, NameZh = "印尼炒飯", NameId = "Nasi Goreng",
-                      Description = "印尼經典炒飯，香氣濃郁", Price = 120, Rating = 5.0,
-                      IsPopular = true, CategoryKey = "rice",
+                      Description = "印尼經典炒飯，香氣濃郁",
+                      LongDescription = "印尼經典炒飯，香氣濃郁\r\n搭配蝦餅，荷包蛋與炸蔥，風味十足。",
+                      Price = 120, Rating = 5.0, IsPopular = true, CategoryKey = "rice",
+                      HasSpiceOption = true,
                       ImageFileName = "product_nasi_goreng.png" },
 
         new Product { ProductId = 2, NameZh = "沙嗲串燒", NameId = "Sate",
-                      Description = "炭烤雞肉串，搭配花生醬", Price = 150, Rating = 5.0,
-                      IsPopular = true, CategoryKey = "plate",
+                      Description = "炭烤雞肉串，搭配花生醬",
+                      LongDescription = "炭烤雞肉串，搭配花生醬\r\n炙烤香氣濃郁，沾醬香甜微辛。",
+                      Price = 150, Rating = 5.0, IsPopular = true, CategoryKey = "plate",
+                      HasSpiceOption = true,
                       ImageFileName = "product_sate.png" },
 
         new Product { ProductId = 3, NameZh = "仁當牛肉", NameId = "Rendang",
-                      Description = "印尼傳統燉牛肉，香辣濃郁", Price = 180, Rating = 5.0,
-                      IsPopular = true, CategoryKey = "plate",
+                      Description = "印尼傳統燉牛肉，香辣濃郁",
+                      LongDescription = "印尼傳統燉牛肉，香辣濃郁\r\n慢燉數小時，肉質軟嫩入味。",
+                      Price = 180, Rating = 5.0, IsPopular = true, CategoryKey = "plate",
+                      HasSpiceOption = true,
                       ImageFileName = "product_rendang.png" },
 
         new Product { ProductId = 4, NameZh = "雞肉湯", NameId = "Soto Ayam",
-                      Description = "香料雞湯，清爽開胃", Price = 120, Rating = 5.0,
-                      IsPopular = false, CategoryKey = "plate",
+                      Description = "香料雞湯，清爽開胃",
+                      LongDescription = "香料雞湯，清爽開胃\r\n以薑黃與香茅慢熬，湯頭清甜。",
+                      Price = 120, Rating = 5.0, IsPopular = false, CategoryKey = "plate",
+                      HasSpiceOption = false,
                       ImageFileName = "product_soto_ayam.png" },
 
         new Product { ProductId = 5, NameZh = "天貝炸物", NameId = "Tempe Goreng",
-                      Description = "印尼傳統發酵豆餅", Price = 80, Rating = 5.0,
-                      IsPopular = false, CategoryKey = "fries",
+                      Description = "印尼傳統發酵豆餅",
+                      LongDescription = "印尼傳統發酵豆餅\r\n外酥內軟，香氣質樸有嚼勁。",
+                      Price = 80, Rating = 5.0, IsPopular = false, CategoryKey = "fries",
+                      HasSpiceOption = false,
                       ImageFileName = "product_tempe_goreng.png" },
 
         new Product { ProductId = 6, NameZh = "千層糕", NameId = "Kue Lapis",
-                      Description = "印尼傳統千層糕", Price = 60, Rating = 5.0,
-                      IsPopular = false, CategoryKey = "cake",
+                      Description = "印尼傳統千層糕",
+                      LongDescription = "印尼傳統千層糕\r\n層層分明，口感軟糯帶椰香。",
+                      Price = 60, Rating = 5.0, IsPopular = false, CategoryKey = "cake",
+                      HasSpiceOption = false,
                       ImageFileName = "product_kue_lapis.png" },
-    };
+         new Product { ProductId = 7, NameZh = "珍多冰", NameId = "Es Cendol",
+                        Description = "椰奶椰糖，消暑冰品",
+                        LongDescription = "椰奶椰糖，消暑冰品\r\n加入綠色米粉條，口感 Q 彈冰涼。",
+                        Price = 70, Rating = 5.0, IsPopular = false, CategoryKey = "drink",
+                        HasSpiceOption = false,
+                        HasIceOption = true,
+                        HasSweetnessOption = true,
+                        ImageFileName = "product_es_cendol.png" },
+
+        new Product { ProductId = 8, NameZh = "酪梨牛奶", NameId = "Jus Alpukat",
+                      Description = "濃醇酪梨，香甜滑順",
+                       LongDescription = "濃醇酪梨，香甜滑順\r\n淋上巧克力醬，是印尼經典飲品。",
+                       Price = 90, Rating = 5.0, IsPopular = true, CategoryKey = "drink",
+                       HasSpiceOption = false,
+                       HasIceOption = true,
+                       HasSweetnessOption = true,
+                       ImageFileName = "product_jus_alpukat.png" },
+            };
         }
 
 
@@ -901,14 +924,565 @@ namespace IndoTaste.Forms.Customer
             flpProducts.ResumeLayout(true);
         }
 
-        /// <summary>
-        /// 任何一張卡片按下「加入購物車」都會走到這裡
-        /// </summary>
+
         private void Card_AddToCartClicked(object sender, Product product)
         {
-            // TODO: 之後改成實際加入購物車的邏輯（右側購物車區塊）
-            MessageBox.Show($"加入購物車：{product.DisplayName}　NT$ {product.Price:0}");
+            ShowAddToCartDialog(product, null);
         }
+
+
+        /// <summary>
+        /// 自動裁掉圖片四周的透明邊距，只保留實際有內容的區域
+        /// </summary>
+        private Image TrimTransparentBorder(Bitmap source, int alphaThreshold = 8)
+        {
+            var full = new Rectangle(0, 0, source.Width, source.Height);
+
+            BitmapData data = source.LockBits(full, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+
+            int stride = data.Stride;
+            byte[] buffer = new byte[stride * source.Height];
+            Marshal.Copy(data.Scan0, buffer, 0, buffer.Length);
+            source.UnlockBits(data);
+
+            int minX = source.Width, minY = source.Height, maxX = -1, maxY = -1;
+
+            for (int y = 0; y < source.Height; y++)
+            {
+                int rowStart = y * stride;
+
+                for (int x = 0; x < source.Width; x++)
+                {
+                    byte alpha = buffer[rowStart + x * 4 + 3];   // BGRA 的 A
+
+                    if (alpha > alphaThreshold)
+                    {
+                        if (x < minX) minX = x;
+                        if (y < minY) minY = y;
+                        if (x > maxX) maxX = x;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            // 整張都是透明（或判斷失敗）時，回傳原圖
+            if (maxX < minX || maxY < minY)
+                return new Bitmap(source);
+
+            var content = Rectangle.FromLTRB(minX, minY, maxX + 1, maxY + 1);
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[Logo 裁邊] 原始 {source.Width}×{source.Height} → 實際內容 {content.Width}×{content.Height}");
+
+            return source.Clone(content, PixelFormat.Format32bppArgb);
+        }
+
+
+        /// <summary>
+        /// 建立上方 Header：左側 Logo（之後再加使用者資訊與購物車徽章）
+        /// </summary>
+        private void SetupHeader()
+        {
+            pnlHeader.BackColor = AppColors.HeaderBgColor;
+
+            var picLogo = new PictureBox
+            {
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent
+            };
+
+            string logoPath = Path.Combine(GetAssetsFolder("Images"), "logo_indotaste.png");
+
+            if (File.Exists(logoPath))
+            {
+                //讀進記憶體後立刻釋放檔案，避免檔案被鎖住
+
+                using (var fs = new FileStream(logoPath, FileMode.Open, FileAccess.Read))
+                using (var temp = Image.FromStream(fs))
+                using (var bmp = new Bitmap(temp))
+                {
+                    // 裁掉四周透明邊距，讓 Logo 能填滿顯示區域
+                    picLogo.Image = TrimTransparentBorder(bmp);
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"找不到 Logo 圖片：{logoPath}");
+
+                // 找不到圖片時用文字替代，方便先確認版面
+                picLogo.Dispose();
+
+                var lblLogo = new Label
+                {
+                    Text = "IndoTaste",
+                    Font = new Font("微軟正黑體", 25, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    BackColor = Color.Transparent,
+                    AutoSize = true,
+                    Location = new Point(28, 20)
+                };
+
+                pnlHeader.Controls.Add(lblLogo);
+                return;
+            }
+
+            pnlHeader.Controls.Add(picLogo);
+
+            // 依 Header 實際高度與圖片比例，計算 Logo 尺寸並垂直置中
+            void LayoutHeader()
+            {
+                if (pnlHeader.ClientSize.Height <= 0 || picLogo.Image == null) return;
+
+                const int leftPadding = 28;   // 與左邊界的距離
+                //const int verticalPadding = 16; // 上下各留多少空白
+                const int verticalPadding = 10;   // 原本 16，改小讓 Logo 更大
+
+                int logoHeight = pnlHeader.ClientSize.Height - verticalPadding * 2;
+                if (logoHeight <= 0) return;
+
+                // 依圖片原始比例算出對應寬度，不會變形
+                float ratio = (float)picLogo.Image.Width / picLogo.Image.Height;
+                int logoWidth = (int)(logoHeight * ratio);
+
+                picLogo.Size = new Size(logoWidth, logoHeight);
+                picLogo.Location = new Point(leftPadding, verticalPadding);
+            }
+
+            pnlHeader.Resize += (s, e) => LayoutHeader();
+            LayoutHeader();
+        }
+
+
+
+        //#region 購物車區塊
+        // SetupCartArea、CreateCartHeader、RefreshCart... 全部放這裡
+        /// <summary>
+        /// 建立右側購物車區塊：標題列 / 項目清單 / 結算區
+        /// </summary>
+        private void SetupCartArea()
+        {
+            pnlCart.BackColor = Color.FromArgb(252, 245, 234);
+            UpdatePanelRoundedCorners(pnlCart, 16);
+            pnlCart.Resize += (s, e) => UpdatePanelRoundedCorners(pnlCart, 16);
+
+            tlpCart = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                BackColor = Color.Transparent,
+                Padding = new Padding(16, 16, 16, 16)
+            };
+
+            tlpCart.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));    // 標題
+            tlpCart.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // 項目清單
+            tlpCart.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));   // 結算區
+            tlpCart.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            tlpCart.Controls.Add(CreateCartHeader(), 0, 0);
+            tlpCart.Controls.Add(CreateCartItemList(), 0, 1);
+            tlpCart.Controls.Add(CreateCartFooter(), 0, 2);
+
+            pnlCart.Controls.Add(tlpCart);
+
+            // 購物車一有變動就自動重畫
+            _cart.Changed += (s, e) => RefreshCart();
+
+            RefreshCart();
+        }
+
+        private Control CreateCartHeader()
+        {
+            var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+
+            var picIcon = new PictureBox
+            {
+                Size = new Size(28, 28),
+                Location = new Point(0, 12),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent,
+                Image = LoadCartIcon("icon_cart_black", 28)
+            };
+
+            lblCartTitle = new Label
+            {
+                Text = "購物車",
+                Font = new Font("微軟正黑體", 15, FontStyle.Bold),
+                ForeColor = Color.FromArgb(60, 50, 45),
+                AutoSize = true,
+                Location = new Point(38, 12)
+            };
+
+            panel.Controls.Add(picIcon);
+            panel.Controls.Add(lblCartTitle);
+
+            return panel;
+        }
+
+        private Control CreateCartItemList()
+        {
+            flpCartItems = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                WrapContents = false,
+                FlowDirection = FlowDirection.TopDown,
+                BackColor = Color.Transparent,
+                Margin = new Padding(0, 8, 0, 8)
+            };
+
+            return flpCartItems;
+        }
+
+        private Control CreateCartFooter()
+        {
+            var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+
+            // --- 總金額區塊（白底圓角）---
+            var pnlTotal = new Panel
+            {
+                BackColor = Color.White,
+                Location = new Point(0, 0),
+                Height = 64
+            };
+            pnlTotal.Resize += (s, e) => UpdatePanelRoundedCorners(pnlTotal, 12);
+
+            lblTotalLabel = new Label
+            {
+                Text = "總金額 (0 項商品)",
+                Font = new Font("微軟正黑體", 11),
+                ForeColor = Color.FromArgb(90, 80, 70),
+                AutoSize = true,
+                Location = new Point(16, 20)
+            };
+
+            lblTotalAmount = new Label
+            {
+                Text = "NT$ 0",
+                Font = new Font("微軟正黑體", 13, FontStyle.Bold),
+                ForeColor = Color.FromArgb(60, 50, 45),
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleRight,
+                Size = new Size(120, 26),
+                Location = new Point(0, 20)
+            };
+
+            pnlTotal.Controls.Add(lblTotalLabel);
+            pnlTotal.Controls.Add(lblTotalAmount);
+
+
+            // --- 兩顆按鈕 ---
+            // 清空購物車按鈕
+            btnClearCart = new Button
+            {
+                Text = "清空購物車",
+                Font = new Font("微軟正黑體", 11, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.White,
+                ForeColor = Color.Black,        // 預設黑字
+                Height = 52,
+                Cursor = Cursors.Hand
+            };
+            btnClearCart.FlatAppearance.BorderSize = 0;
+            btnClearCart.Resize += (s, e) => UiHelper.ApplyRoundedRegion(btnClearCart, 10);
+
+            // hover：紅底白字
+            btnClearCart.MouseEnter += (s, e) =>
+            {
+                btnClearCart.BackColor = Color.FromArgb(183, 29, 37);
+                btnClearCart.ForeColor = Color.White;
+            };
+            btnClearCart.MouseLeave += (s, e) =>
+            {
+                btnClearCart.BackColor = Color.White;
+                btnClearCart.ForeColor = Color.Black;
+            };
+
+            // 前往結帳按鈕
+            btnCheckout = new Button
+            {
+                Text = "前往結帳",
+                Font = new Font("微軟正黑體", 11, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(183, 29, 37),   // 預設紅底
+                ForeColor = Color.White,                    // 預設白字
+                Height = 52,
+                Cursor = Cursors.Hand
+            };
+            btnCheckout.FlatAppearance.BorderSize = 0;
+            btnCheckout.Resize += (s, e) => UiHelper.ApplyRoundedRegion(btnCheckout, 10);
+
+            // hover：白底黑字（跟預設狀態對調）
+            btnCheckout.MouseEnter += (s, e) =>
+            {
+                btnCheckout.BackColor = Color.White;
+                btnCheckout.ForeColor = Color.Black;
+            };
+            btnCheckout.MouseLeave += (s, e) =>
+            {
+                btnCheckout.BackColor = Color.FromArgb(183, 29, 37);
+                btnCheckout.ForeColor = Color.White;
+            };
+
+            btnClearCart.Click += BtnClearCart_Click;
+            btnCheckout.Click += BtnCheckout_Click;
+
+            panel.Controls.Add(pnlTotal);
+            panel.Controls.Add(btnClearCart);
+            panel.Controls.Add(btnCheckout);
+
+            // 依實際寬度排版
+            void LayoutFooter()
+            {
+                int w = panel.ClientSize.Width;
+                if (w <= 0) return;
+
+                pnlTotal.Size = new Size(w, 64);
+                lblTotalAmount.Left = w - lblTotalAmount.Width - 16;
+                UpdatePanelRoundedCorners(pnlTotal, 12);
+
+                int gap = 10;
+                int btnWidth = (w - gap) / 2;
+
+                btnClearCart.Location = new Point(0, 84);
+                btnClearCart.Width = btnWidth;
+
+                btnCheckout.Location = new Point(btnWidth + gap, 84);
+                btnCheckout.Width = w - btnWidth - gap;
+            }
+
+            panel.Resize += (s, e) => LayoutFooter();
+            LayoutFooter();
+
+            return panel;
+        }
+
+        private Image LoadCartIcon(string iconName, int size)
+        {
+            string path = Path.Combine(GetAssetsFolder("Icons"), iconName + ".png");
+            if (!File.Exists(path)) return null;
+
+            try
+            {
+                using (var original = new Bitmap(path))
+                    return new Bitmap(original, new Size(size, size));
+            }
+            catch { return null; }
+        }
+
+
+        /// <summary>
+        /// 依購物車目前內容重畫項目列表與總金額
+        /// </summary>
+        private void RefreshCart()
+        {
+            if (flpCartItems == null) return;
+
+            flpCartItems.SuspendLayout();
+
+            foreach (Control ctrl in flpCartItems.Controls.OfType<Control>().ToList())
+            {
+                flpCartItems.Controls.Remove(ctrl);
+                ctrl.Dispose();
+            }
+
+            if (_cart.IsEmpty)
+            {
+                flpCartItems.Controls.Add(new Label
+                {
+                    Text = "購物車是空的",
+                    Font = new Font("微軟正黑體", 11),
+                    ForeColor = Color.FromArgb(160, 150, 140),
+                    AutoSize = true,
+                    Margin = new Padding(8, 24, 0, 0)
+                });
+            }
+            else
+            {
+                int rowWidth = flpCartItems.ClientSize.Width - 8;
+
+                foreach (var item in _cart.Items)
+                {
+                    var row = new CartItemRow(item)
+                    {
+                        Width = Math.Max(280, rowWidth),
+                        Margin = new Padding(0, 0, 0, 10)
+                    };
+
+                    row.EditRequested += CartRow_EditRequested;
+                    row.RemoveRequested += CartRow_RemoveRequested;
+
+                    flpCartItems.Controls.Add(row);
+                }
+            }
+
+            flpCartItems.ResumeLayout(true);
+
+            // 更新結算區
+            lblTotalLabel.Text = $"總金額 ({_cart.ItemCount} 項商品)";
+            lblTotalAmount.Text = $"NT$ {_cart.TotalAmount:0}";
+
+            // 按鈕啟用/停用
+            btnClearCart.Enabled = !_cart.IsEmpty;
+            btnCheckout.Enabled = !_cart.IsEmpty;
+            btnCheckout.BackColor = _cart.IsEmpty
+                ? Color.FromArgb(200, 190, 180)     // 停用時的灰色
+                : Color.FromArgb(183, 29, 37);      // 可用時的紅色
+        }
+
+        /// <summary>鉛筆：重新開啟彈窗並帶入原本的選項</summary>
+        private void CartRow_EditRequested(object sender, CartItem item)
+        {
+            if (item == null) return;
+
+            ShowAddToCartDialog(item.Product, item);
+        }
+
+        /// <summary>垃圾桶：確認後移除</summary>
+        private void CartRow_RemoveRequested(object sender, CartItem item)
+        {
+            if (item == null) return;
+
+            var result = MessageBox.Show(
+                $"確定要移除「{item.Product.NameZh}」嗎？",
+                "移除商品",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+                _cart.Remove(item);
+        }
+
+        private void BtnClearCart_Click(object sender, EventArgs e)
+        {
+            if (_cart.IsEmpty) return;
+
+            var result = MessageBox.Show(
+                "確定要清空購物車嗎？",
+                "清空購物車",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result == DialogResult.Yes)
+                _cart.Clear();
+        }
+
+        //private void BtnCheckout_Click(object sender, EventArgs e)
+        //{
+        //    if (_cart.IsEmpty) return;
+
+        //    // TODO: 之後接結帳流程
+        //    MessageBox.Show(
+        //        $"共 {_cart.ItemCount} 項商品，總金額 NT$ {_cart.TotalAmount:0}",
+        //        "前往結帳");
+        //}
+
+        // / <summary>
+        /// 前往結帳：開啟 FormCheckout 彈窗，選擇付款方式後建立訂單
+        private void BtnCheckout_Click(object sender, EventArgs e)
+        {
+            if (_cart.IsEmpty) return;
+
+            // 半透明遮罩
+            using (var overlay = new Form
+            {
+                FormBorderStyle = FormBorderStyle.None,
+                BackColor = Color.Black,
+                Opacity = 0.45,
+                ShowInTaskbar = false,
+                StartPosition = FormStartPosition.Manual,
+                Bounds = this.Bounds
+            })
+            {
+                overlay.Show(this);
+
+                using (var dialog = new FormCheckout(_cart))
+                {
+                    var result = dialog.ShowDialog(overlay);
+                    overlay.Close();
+
+                    if (result != DialogResult.OK) return;   // 返回修改：購物車保持原狀
+
+                    // 建立訂單（存入全域 OrderService）
+                    var order = OrderService.Instance.CreateOrder(_cart, dialog.SelectedPaymentMethod);
+
+                    if (order == null)
+                    {
+                        MessageBox.Show("訂單建立失敗，請重試。", "錯誤");
+                        return;
+                    }
+
+                    // 訂單成立後清空購物車（Changed 事件會自動重畫右側區塊）
+                    _cart.Clear();
+
+                    MessageBox.Show(
+                        $"訂單成立！\r\n\r\n" +
+                        $"訂單編號：{order.OrderNumber}\r\n" +
+                        $"付款方式：{order.PaymentMethod}\r\n" +
+                        $"共 {order.ItemCount} 項商品、{order.TotalQuantity} 件\r\n" +
+                        $"總金額：NT$ {order.TotalAmount:0}",
+                        "結帳完成",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[訂單] {order.OrderNumber} 已建立，目前共 {OrderService.Instance.Orders.Count} 筆訂單");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 開啟加入購物車彈窗（editingItem 為 null 代表新增，否則為編輯）
+        /// </summary>
+        private void ShowAddToCartDialog(Product product, CartItem editingItem)
+        {
+            using (var overlay = new Form
+            {
+                FormBorderStyle = FormBorderStyle.None,
+                BackColor = Color.Black,
+                Opacity = 0.45,
+                ShowInTaskbar = false,
+                StartPosition = FormStartPosition.Manual,
+                Bounds = this.Bounds
+            })
+            {
+                overlay.Show(this);
+
+                var dialog = editingItem != null
+                    ? new FormAddToCart(editingItem)
+                    : new FormAddToCart(product);
+
+                using (dialog)
+                {
+                    var result = dialog.ShowDialog(overlay);
+                    overlay.Close();
+
+                    if (result != DialogResult.OK) return;
+
+                    if (editingItem != null)
+                    {
+                        _cart.UpdateItem(editingItem,
+                            dialog.SelectedQuantity,
+                            dialog.SelectedSpiceLevel,
+                            dialog.SelectedIceLevel,
+                            dialog.SelectedSweetness,
+                            dialog.SelectedDiningType);
+                    }
+                    else
+                    {
+                        _cart.Add(product,
+                            dialog.SelectedQuantity,
+                            dialog.SelectedSpiceLevel,
+                            dialog.SelectedIceLevel,
+                            dialog.SelectedSweetness,
+                            dialog.SelectedDiningType);
+                    }
+                }
+            }
+        }
+
+        //#endregion
+
 
         private void tblMain_Paint(object sender, PaintEventArgs e)
         {

@@ -59,6 +59,7 @@ namespace IndoTaste.Helpers
             return path;
         }
 
+
         /// <summary>
         /// 將控制項裁切成圓角（可指定哪幾個角）
         /// </summary>
@@ -98,5 +99,36 @@ namespace IndoTaste.Helpers
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.DrawImage(image, new Rectangle(x, y, w, h));
         }
+
+        /// <summary>
+        /// 在控制項上繪製圓角外框（取代 FlatAppearance 的矩形外框）
+        /// </summary>
+        public static void DrawRoundedBorder(Graphics g, Rectangle bounds, int radius, Color color, int thickness)
+        {
+            if (bounds.Width <= thickness || bounds.Height <= thickness) return;
+
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // 內縮半個線寬，讓外框完整落在控制項範圍內、不被 Region 切掉
+            float inset = thickness / 2f;
+            float w = bounds.Width - thickness;
+            float h = bounds.Height - thickness;
+            float d = radius * 2f;
+
+            using (var path = new GraphicsPath())
+            {
+                path.AddArc(inset, inset, d, d, 180, 90);
+                path.AddArc(inset + w - d, inset, d, d, 270, 90);
+                path.AddArc(inset + w - d, inset + h - d, d, d, 0, 90);
+                path.AddArc(inset, inset + h - d, d, d, 90, 90);
+                path.CloseAllFigures();
+
+                using (var pen = new Pen(color, thickness))
+                {
+                    g.DrawPath(pen, path);
+                }
+            }
+        }
+
     }
 }

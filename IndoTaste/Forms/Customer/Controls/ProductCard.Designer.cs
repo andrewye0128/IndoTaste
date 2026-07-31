@@ -60,7 +60,7 @@
             this.tlpCard.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 28F));
             this.tlpCard.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34F));
             this.tlpCard.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 64F));
-            this.tlpCard.Size = new System.Drawing.Size(375, 330);
+            this.tlpCard.Size = new System.Drawing.Size(365, 330);
             this.tlpCard.TabIndex = 0;
             // 
             // pnlImage
@@ -69,7 +69,7 @@
             this.pnlImage.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlImage.Location = new System.Drawing.Point(3, 3);
             this.pnlImage.Name = "pnlImage";
-            this.pnlImage.Size = new System.Drawing.Size(369, 164);
+            this.pnlImage.Size = new System.Drawing.Size(359, 164);
             this.pnlImage.TabIndex = 0;
             // 
             // lblBadge
@@ -92,7 +92,7 @@
             this.lblName.Location = new System.Drawing.Point(3, 170);
             this.lblName.Name = "lblName";
             this.lblName.Padding = new System.Windows.Forms.Padding(8, 0, 0, 0);
-            this.lblName.Size = new System.Drawing.Size(369, 34);
+            this.lblName.Size = new System.Drawing.Size(359, 34);
             this.lblName.TabIndex = 1;
             this.lblName.Text = "商品名稱";
             this.lblName.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -106,7 +106,7 @@
             this.lblDesc.Location = new System.Drawing.Point(3, 204);
             this.lblDesc.Name = "lblDesc";
             this.lblDesc.Padding = new System.Windows.Forms.Padding(8, 0, 0, 0);
-            this.lblDesc.Size = new System.Drawing.Size(369, 28);
+            this.lblDesc.Size = new System.Drawing.Size(359, 28);
             this.lblDesc.TabIndex = 2;
             this.lblDesc.Text = "商品簡短描述";
             this.lblDesc.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -118,7 +118,7 @@
             this.pnlPriceRow.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlPriceRow.Location = new System.Drawing.Point(3, 235);
             this.pnlPriceRow.Name = "pnlPriceRow";
-            this.pnlPriceRow.Size = new System.Drawing.Size(369, 28);
+            this.pnlPriceRow.Size = new System.Drawing.Size(359, 28);
             this.pnlPriceRow.TabIndex = 3;
             // 
             // lblRating
@@ -127,7 +127,7 @@
             this.lblRating.Dock = System.Windows.Forms.DockStyle.Right;
             this.lblRating.Font = new System.Drawing.Font("微軟正黑體", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
             this.lblRating.ForeColor = System.Drawing.Color.Orange;
-            this.lblRating.Location = new System.Drawing.Point(283, 0);
+            this.lblRating.Location = new System.Drawing.Point(273, 0);
             this.lblRating.Name = "lblRating";
             this.lblRating.Padding = new System.Windows.Forms.Padding(0, 0, 8, 0);
             this.lblRating.Size = new System.Drawing.Size(86, 22);
@@ -156,7 +156,7 @@
             this.btnAddToCart.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnAddToCart.Font = new System.Drawing.Font("微軟正黑體", 10.2F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
             this.btnAddToCart.ForeColor = System.Drawing.Color.White;
-            this.btnAddToCart.Location = new System.Drawing.Point(213, 278);
+            this.btnAddToCart.Location = new System.Drawing.Point(203, 278);
             this.btnAddToCart.Margin = new System.Windows.Forms.Padding(3, 3, 12, 3);
             this.btnAddToCart.Name = "btnAddToCart";
             this.btnAddToCart.Size = new System.Drawing.Size(150, 40);
@@ -171,7 +171,7 @@
             this.BackColor = System.Drawing.Color.White;
             this.Controls.Add(this.tlpCard);
             this.Name = "ProductCard";
-            this.Size = new System.Drawing.Size(375, 330);
+            this.Size = new System.Drawing.Size(365, 330);
             this.tlpCard.ResumeLayout(false);
             this.tlpCard.PerformLayout();
             this.pnlImage.ResumeLayout(false);

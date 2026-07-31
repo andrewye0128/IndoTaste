@@ -11,22 +11,41 @@
         /// Clean up any resources being used.
         /// </summary>
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        //protected override void Dispose(bool disposing)
+        //{
+        //    //if (disposing && (components != null))
+        //    //{
+        //    //    components.Dispose();
+        //    //}
+
+        //    // 清理所有載入的 Image 資源
+        //    if (disposing)
+        //    {
+        //        foreach (var image in _buttonImages.Values)
+        //        {
+        //            image?.Dispose();
+        //        }
+        //        _buttonImages.Clear();
+        //    }
+        //    base.Dispose(disposing);
+        //}
+
         protected override void Dispose(bool disposing)
         {
-            //if (disposing && (components != null))
-            //{
-            //    components.Dispose();
-            //}
-
-            // 清理所有載入的 Image 資源
             if (disposing)
             {
-                foreach (var image in _buttonImages.Values)
+                if (components != null)
+                    components.Dispose();
+
+                // 釋放分類按鈕的紅/白 icon
+                foreach (var pair in _buttonIconPairs.Values)
                 {
-                    image?.Dispose();
+                    pair.Red?.Dispose();
+                    pair.White?.Dispose();
                 }
-                _buttonImages.Clear();
+                _buttonIconPairs.Clear();
             }
+
             base.Dispose(disposing);
         }
 
